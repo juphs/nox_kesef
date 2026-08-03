@@ -1,0 +1,16 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# Env files (never commit real secrets)
+.env
+
+# Trade journal and trained model are personal/runtime data, not source
+# -- delete these lines if you actually want to version-control your
+# trading history.
+data/trade-journal.jsonl
+models/ensemble-weights.json
+
+# OS
+.DS_Store
+Thumbs.db

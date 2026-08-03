@@ -1,0 +1,175 @@
+<%- include('partials/header') %>
+
+  <main class="dashboard">
+    <div class="grid-2col">
+
+      <!-- ============ LEFT COLUMN ============ -->
+      <div>
+
+        <!-- Balance -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Balance</span>
+            <span class="panel-sub" id="riskProfileLabel"><%= state.risk.riskProfile.label.toLowerCase() %></span>
+          </div>
+          <div>
+            <span class="balance-figure" id="statBalance">
+              <% if (state.connection.executionMode === 'DERIV' && !state.risk.liveBalanceSynced) { %>syncing&hellip;<% } else { %><%= state.risk.balance.toLocaleString(undefined, {minimumFractionDigits: 2}) %><% } %>
+            </span>
+            <span class="balance-currency">USD</span>
+          </div>
+          <div class="balance-realized <%= state.risk.realizedPnl >= 0 ? 'positive' : 'negative' %>" id="statRealized">
+            <%= state.risk.realizedPnl >= 0 ? '+' : '' %>$<%= state.risk.realizedPnl.toFixed(2) %> realized
+          </div>
+          <div class="chart-wrap"><canvas id="balanceChart"></canvas></div>
+        </div>
+
+        <!-- Open Contracts -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Open Contracts</span>
+            <span class="panel-sub" id="openContractsCount"><%= state.risk.openPositionCount %>/<%= state.risk.maxConcurrentPositions %></span>
+          </div>
+          <table class="data-table" id="contractsTable">
+            <thead><tr><th>Pair</th><th>Side</th><th>Stake</th><th>x</th><th>Stop</th><th>Target</th><th>Conf</th><th>P&amp;L</th></tr></thead>
+            <tbody id="contractsBody">
+              <% const openContracts = state.contracts.filter(c => c.status === 'OPEN'); %>
+              <% if (openContracts.length === 0) { %><tr id="contractsEmptyRow"><td colspan="8" class="empty-state">No open contracts.</td></tr><% } %>
+              <% openContracts.forEach(c => { %>
+                <tr data-contract-id="<%= c.contractId %>">
+                  <td><%= c.symbol %></td>
+                  <td class="side-<%= c.direction.toLowerCase() %>"><%= c.direction === 'MULTUP' ? 'BUY' : 'SELL' %></td>
+                  <td>$<%= c.stake %></td>
+                  <td>x<%= c.multiplier %></td>
+                  <td>$<%= c.stopLossValue %></td>
+                  <td>$<%= c.takeProfitValue %></td>
+                  <td><%= (c.confidence * 100).toFixed(0) %>%</td>
+                  <td class="ev-value <%= (c.pnl || 0) >= 0 ? 'positive' : 'negative' %>"><%= c.pnl !== null ? ((c.pnl >= 0 ? '+' : '') + c.pnl.toFixed(2)) : '&mdash;' %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Trade History -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Trade History</span>
+            <span class="panel-sub"><%= state.contracts.filter(c => c.status !== 'OPEN').length %></span>
+          </div>
+          <table class="data-table" id="historyTable">
+            <thead><tr><th>Pair</th><th>Side</th><th>Stake</th><th>x</th><th>P&amp;L</th><th>Reason</th></tr></thead>
+            <tbody id="historyBody">
+              <% const closedContracts = state.contracts.filter(c => c.status !== 'OPEN'); %>
+              <% if (closedContracts.length === 0) { %><tr id="historyEmptyRow"><td colspan="6" class="empty-state">No closed trades yet.</td></tr><% } %>
+              <% closedContracts.forEach(c => { %>
+                <tr data-contract-id="<%= c.contractId %>">
+                  <td><%= c.symbol %></td>
+                  <td class="side-<%= c.direction.toLowerCase() %>"><%= c.direction === 'MULTUP' ? 'BUY' : 'SELL' %></td>
+                  <td>$<%= c.stake %></td>
+                  <td>x<%= c.multiplier %></td>
+                  <td class="ev-value <%= (c.pnl || 0) >= 0 ? 'positive' : 'negative' %>"><%= (c.pnl >= 0 ? '+' : '') + c.pnl.toFixed(2) %></td>
+                  <td><%= c.reason %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- AI Health -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">NVIDIA AI Health</span>
+            <span class="panel-sub" id="aiHealthCount"></span>
+          </div>
+          <div class="ai-health-grid" id="aiHealthGrid">
+            <% Object.entries(state.aiStatus).forEach(([functionId, fn]) => { %>
+              <div class="ai-health-item" data-function="<%= functionId %>">
+                <span class="name">
+                  <span class="status-dot <%= fn.state === 'ACTIVE' ? 'online' : (fn.state === 'DEGRADED' ? 'online' : 'offline') %>" data-role="dot"></span>
+                  <span data-role="model-name"><%= fn.active_model || fn.label %></span>
+                </span>
+                <span class="tag <%= fn.state === 'ACTIVE' ? 'ok' : (fn.state === 'DEGRADED' ? 'degraded' : 'down') %>" data-role="tag">
+                  <%= fn.state === 'ACTIVE' ? 'ok' : (fn.state === 'DEGRADED' ? 'fallback' : (fn.state === 'IDLE' ? 'idle' : 'down')) %>
+                </span>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ============ RIGHT COLUMN: REASONING FEED ============ -->
+      <div>
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Reasoning Feed</span>
+            <span class="panel-sub">live</span>
+          </div>
+          <div class="reasoning-feed" id="logPanel">
+            <% if (state.logs.length === 0) { %><div class="empty-state" id="logEmptyState">Press START to begin scanning.</div><% } %>
+            <% state.logs.forEach(entry => { %>
+              <div class="log-line <%= entry.level %>"><span class="ts">[<%= new Date(entry.ts).toLocaleTimeString() %>]</span><%= entry.line %></div>
+            <% }) %>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ============ SETTINGS (collapsible) ============ -->
+    <div class="panel settings-panel" id="settingsPanel">
+      <div class="panel-header"><span class="panel-title">Settings</span></div>
+
+      <div class="config-block">
+        <div class="config-block-title">Risk Profile</div>
+        <div class="risk-profile-selector" id="riskProfileSelector">
+          <% state.risk.riskProfile.available.forEach(p => { %>
+            <button class="risk-profile-btn <%= p.id === state.risk.riskProfile.active ? 'active' : '' %>" data-profile="<%= p.id %>"><%= p.label %></button>
+          <% }) %>
+        </div>
+        <div class="config-sub" id="riskProfileEffective">
+          Kelly x<%= state.risk.riskProfile.effective.kellyFraction %> &middot; max position <%= state.risk.riskProfile.effective.maxPositionPctOfBalance %>% &middot;
+          max drawdown <%= state.risk.riskProfile.effective.maxDailyDrawdownPct %>% &middot; leverage x<%= state.risk.riskProfile.effective.leverage %>
+        </div>
+      </div>
+
+      <div class="config-block">
+        <div class="config-block-title">Trading Pairs <span class="config-sub-inline" id="pairsAvailableNote">(<%= state.pairs.available.length %> available)</span></div>
+        <div class="pairs-grid" id="pairsGrid">
+          <% state.pairs.available.forEach(pair => { %>
+            <label class="pair-chip"><input type="checkbox" value="<%= pair %>" <%= state.pairs.selected.includes(pair) ? 'checked' : '' %> /><span><%= pair %></span></label>
+          <% }) %>
+        </div>
+        <button class="btn btn-ghost" id="applyPairsBtn">Apply Selection</button>
+      </div>
+
+      <div class="config-block">
+        <div class="config-block-title">Training Data</div>
+        <div class="deriv-info" id="journalStats">
+          Decisions logged: <strong><%= state.journal.totalDecisions %></strong> &middot;
+          Closed trades: <strong><%= state.journal.totalClosedTrades %></strong> &middot;
+          Win rate: <strong><%= state.journal.winRatePct !== null ? state.journal.winRatePct + '%' : '&mdash;' %></strong><br/>
+          Journal file: <code><%= state.journal.path %></code> (<%= (state.journal.fileSizeBytes / 1024).toFixed(1) %> KB)<br/>
+          <span class="config-sub">This file is plain-text JSONL -- copy it into another Nox Kesef install's <code>data/</code> folder and retrain there to teach a second bot from this one's history.</span>
+        </div>
+        <button class="btn btn-ghost" id="retrainBtn" style="margin-top: 10px;">Retrain Model Now</button>
+        <span class="config-sub" id="retrainStatus"></span>
+      </div>
+
+      <div class="config-block">
+        <div class="config-block-title">Connection</div>
+        <div class="deriv-info">
+          Execution mode: <strong><%= state.connection.executionMode %></strong><br/>
+          <% if (state.connection.executionMode === 'DERIV') { %>
+            Deriv account: <strong><%= state.connection.derivLoginId || 'not connected' %></strong>
+            (<%= state.connection.derivIsVirtual === false ? 'REAL MONEY' : 'demo' %>)<br/>
+          <% } %>
+          <button class="btn btn-ghost" id="refreshAiBtn" style="margin-top: 8px;">Refresh AI Model Catalog</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+<%- include('partials/footer') %>

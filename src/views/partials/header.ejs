@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nox Kesef // Trading Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+</head>
+<body>
+  <nav class="topbar">
+    <div class="brand">
+      <span class="mark">NOX <span>KÉSEF</span></span>
+      <span class="subtitle">Deriv Trading Bot</span>
+    </div>
+    <div class="status-row">
+      <span class="pill scanning" id="scanningPill">SCANNING: <%= state.pairs.selected.join(', ') %></span>
+      <span class="pill <%= state.connection.executionMode === 'DERIV' ? 'live' : 'paper' %>" id="modePill">
+        <%= state.connection.executionMode === 'DERIV' ? (state.connection.derivIsVirtual === false ? 'REAL MONEY' : 'DEMO LIVE') : 'PAPER' %>
+      </span>
+      <span class="pill <%= state.marketOpen ? 'market-open' : 'market-closed' %>" id="marketPill">
+        <%= state.marketOpen ? 'MARKET OPEN' : 'MARKET CLOSED' %>
+      </span>
+      <span class="pill">
+        <span class="status-dot <%= state.bot.running ? 'running' : 'stopped' %>" id="runningDot"></span>
+        <span id="runningLabel"><%= state.bot.running ? 'running' : 'stopped' %></span>
+      </span>
+      <button class="btn btn-ghost" id="settingsToggleBtn">SETTINGS</button>
+      <button class="btn btn-kill <%= state.risk.killSwitchEngaged ? 'engaged' : '' %>" id="killSwitchBtn">
+        <%= state.risk.killSwitchEngaged ? 'RESUME' : 'KILL SWITCH' %>
+      </button>
+      <button class="btn <%= state.bot.running ? 'btn-stop' : 'btn-start' %>" id="botToggleBtn">
+        <%= state.bot.running ? 'STOP' : 'START' %>
+      </button>
+    </div>
+  </nav>
+
+  <div class="warning-banner <%= state.risk.killSwitchEngaged ? 'visible' : '' %>" id="warningBanner">
+    <%= state.risk.killSwitchEngaged ? `Daily loss limit reached -- new entries paused. ${state.risk.killSwitchReason || ''} Existing positions are still being managed.` : '' %>
+  </div>

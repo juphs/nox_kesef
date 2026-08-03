@@ -1,0 +1,20 @@
+{
+  "name": "nox-kesef",
+  "version": "2.0.0",
+  "description": "Nox Kesef v2 -- single-process live Deriv trading bot with an in-process statistical ensemble and an NVIDIA AI reasoning matrix. npm install && npm start, nothing else.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "train": "node train.js"
+  },
+  "dependencies": {
+    "bignumber.js": "^9.1.2",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "express": "^4.19.2",
+    "ws": "^8.17.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
